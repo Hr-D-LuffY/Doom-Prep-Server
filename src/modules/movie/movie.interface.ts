@@ -23,3 +23,13 @@ export interface MovieWithLinks {
   watched: boolean;
   prerequisites: { prerequisiteId: number }[];
 }
+
+export interface UpdateMovieInput {
+  title?: string;
+  releaseYear?: number;
+  runtime?: number;
+  watched?: boolean;
+  prerequisites?: number[];
+}
+
+export type PrerequisiteGraph = Map<number, number[]>;

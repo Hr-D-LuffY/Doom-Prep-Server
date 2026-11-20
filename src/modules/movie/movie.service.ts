@@ -4,7 +4,10 @@ import {
   CreateMovieInput,
   MovieResponse,
   MovieWithLinks,
+  PrerequisiteGraph,
+  UpdateMovieInput,
 } from "./movie.interface";
+import { wouldCreateCycle } from "./cycleDetection";
 
 const movieInclude = {
   prerequisites: { select: { prerequisiteId: true } },
@@ -111,4 +114,101 @@ export const getMovieById = async (id: number): Promise<MovieResponse> => {
     throw new AppError(404, "NOT_FOUND", "Movie not found");
   }
   return toMovieResponse(movie);
+};
+
+const loadPrerequisiteGraph = async (): Promise<PrerequisiteGraph> => {
+  const links = await prisma.moviePrerequisite.findMany();
+  const graph: PrerequisiteGraph = new Map();
+  for (const link of links) {
+    const list = graph.get(link.movieId) ?? [];
+    list.push(link.prerequisiteId);
+    graph.set(link.movieId, list);
+  }
+  return graph;
+};
+
+export const updateMovie = async (
+  id: number,
+  input: UpdateMovieInput,
+): Promise<MovieResponse> => {
+  const current = await prisma.movie.findUnique({
+    where: { id },
+    select: { id: true, title: true },
+  });
+  if (!current) {
+    throw new AppError(404, "NOT_FOUND", "Movie not found");
+  }
+
+  if (input.title !== undefined && input.title !== current.title) {
+    const duplicate = await prisma.movie.findUnique({
+      where: { title: input.title },
+      select: { id: true },
+    });
+    if (duplicate) {
+      throw new AppError(
+        409,
+        "DUPLICATE_TITLE",
+        `Movie "${input.title}" already exists`,
+      );
+    }
+  }
+
+  if (input.prerequisites !== undefined) {
+    await ensureMoviesExist(input.prerequisites);
+    const graph = await loadPrerequisiteGraph();
+    if (wouldCreateCycle(id, input.prerequisites, graph)) {
+      throw new AppError(
+        409,
+        "CIRCULAR_DEPENDENCY",
+        "These prerequisites would create a circular dependency",
+      );
+    }
+  }
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      if (input.prerequisites !== undefined) {
+        // PATCH replaces the whole prerequisite list
+        await tx.moviePrerequisite.deleteMany({ where: { movieId: id } });
+        await tx.moviePrerequisite.createMany({
+          data: input.prerequisites.map((prerequisiteId) => ({
+            movieId: id,
+            prerequisiteId,
+          })),
+        });
+      }
+      return tx.movie.update({
+        where: { id },
+        data: {
+          title: input.title,
+          releaseYear: input.releaseYear,
+          runtime: input.runtime,
+          watched: input.watched,
+        },
+        include: movieInclude,
+      });
+    });
+    return toMovieResponse(updated);
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new AppError(
+        409,
+        "DUPLICATE_TITLE",
+        "A movie with this title already exists",
+      );
+    }
+    throw error;
+  }
+};
+
+export const deleteMovie = async (id: number): Promise<void> => {
+  const existing = await prisma.movie.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!existing) {
+    throw new AppError(404, "NOT_FOUND", "Movie not found");
+  }
+  // onDelete: Cascade removes links where this movie is the dependent or the prerequisite
+  await prisma.movie.delete({ where: { id } });
 };

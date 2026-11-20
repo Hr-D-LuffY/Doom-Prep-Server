@@ -138,3 +138,50 @@ export const validateId = (raw: unknown): number => {
   }
   return id;
 };
+
+import { UpdateMovieInput } from "./movie.interface"; // add to the existing import
+
+const UPDATABLE_FIELDS = [
+  "title",
+  "releaseYear",
+  "runtime",
+  "watched",
+  "prerequisites",
+];
+
+export const validateUpdateMovie = (body: unknown): UpdateMovieInput => {
+  if (!isPlainObject(body)) {
+    throw validationError("request body must be a JSON object");
+  }
+  const keys = Object.keys(body);
+  if (keys.length === 0) {
+    throw validationError("provide at least one field to update");
+  }
+  const unknown = keys.filter((key) => !UPDATABLE_FIELDS.includes(key));
+  if (unknown.length > 0) {
+    throw validationError(`unknown field(s): ${unknown.join(", ")}`);
+  }
+
+  const input: UpdateMovieInput = {};
+  if (body.title !== undefined) input.title = parseTitle(body.title);
+  if (body.releaseYear !== undefined) {
+    input.releaseYear = parseIntegerInRange(
+      body.releaseYear,
+      "releaseYear",
+      MIN_RELEASE_YEAR,
+      MAX_RELEASE_YEAR,
+    );
+  }
+  if (body.runtime !== undefined) {
+    input.runtime = parseIntegerInRange(
+      body.runtime,
+      "runtime",
+      MIN_RUNTIME,
+      MAX_RUNTIME,
+    );
+  }
+  if (body.watched !== undefined) input.watched = parseWatched(body.watched);
+  if (body.prerequisites !== undefined)
+    input.prerequisites = parsePrerequisites(body.prerequisites);
+  return input;
+};

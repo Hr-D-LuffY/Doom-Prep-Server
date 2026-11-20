@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { AppError } from "../errors/AppError.js";
+import { AppError } from "../errors/AppError";
 
 const isInvalidJsonError = (err: unknown): boolean => {
   return (

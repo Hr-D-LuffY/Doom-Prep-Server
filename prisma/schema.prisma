@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Movie {
+  id          Int      @id @default(autoincrement())
+  title       String   @unique
+  releaseYear Int
+  runtime     Int
+  watched     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  prerequisites MoviePrerequisite[] @relation("MovieToPrerequisites")
+  requiredBy    MoviePrerequisite[] @relation("PrerequisiteToMovie")
+}
+
+model MoviePrerequisite {
+  movieId        Int
+  prerequisiteId Int
+
+  movie        Movie @relation("MovieToPrerequisites", fields: [movieId], references: [id], onDelete: Cascade)
+  prerequisite Movie @relation("PrerequisiteToMovie", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, prerequisiteId])
+  @@index([prerequisiteId])
+}
+
+model Cinema {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  bundleSizes Int[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

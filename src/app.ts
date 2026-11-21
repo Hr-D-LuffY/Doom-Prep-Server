@@ -4,6 +4,7 @@ import { env } from "./config/env.js";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFoundHandler } from "./middlewares/notFound";
 import { movieRoutes } from "./modules/movie/movie.routes";
+import { cinemaRoutes } from "./modules/cinema/cinema.routes";
 
 const app = express();
 app.use(cors({ origin: env.CORS_ORIGIN }));
@@ -13,6 +14,7 @@ app.get("/", (req, res) => {
   res.json({ message: "Welcome to the Doom Prep " });
 });
 app.use("/api/movies", movieRoutes);
+app.use("/api/cinemas", cinemaRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

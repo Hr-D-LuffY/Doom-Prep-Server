@@ -33,3 +33,18 @@ export interface UpdateMovieInput {
 }
 
 export type PrerequisiteGraph = Map<number, number[]>;
+
+export interface RewatchItem {
+  id: number;
+  title: string;
+  runtime: number;
+  watched: boolean;
+}
+
+export interface RewatchOrderResponse {
+  target: { id: number; title: string };
+  order: RewatchItem[];
+  totalCount: number;
+  watchedCount: number;
+  remainingMinutes: number;
+}

@@ -6,8 +6,11 @@ import {
   MovieWithLinks,
   PrerequisiteGraph,
   UpdateMovieInput,
+  RewatchItem,
+  RewatchOrderResponse,
 } from "./movie.interface";
 import { wouldCreateCycle } from "./cycleDetection";
+import { buildRewatchOrder } from "./rewatchOrder";
 
 const movieInclude = {
   prerequisites: { select: { prerequisiteId: true } },
@@ -117,7 +120,9 @@ export const getMovieById = async (id: number): Promise<MovieResponse> => {
 };
 
 const loadPrerequisiteGraph = async (): Promise<PrerequisiteGraph> => {
-  const links = await prisma.moviePrerequisite.findMany();
+  const links = await prisma.moviePrerequisite.findMany({
+    orderBy: [{ movieId: "asc" }, { prerequisiteId: "asc" }],
+  });
   const graph: PrerequisiteGraph = new Map();
   for (const link of links) {
     const list = graph.get(link.movieId) ?? [];
@@ -211,4 +216,47 @@ export const deleteMovie = async (id: number): Promise<void> => {
   }
   // onDelete: Cascade removes links where this movie is the dependent or the prerequisite
   await prisma.movie.delete({ where: { id } });
+};
+
+export const getRewatchOrder = async (
+  targetId: number,
+): Promise<RewatchOrderResponse> => {
+  const target = await prisma.movie.findUnique({
+    where: { id: targetId },
+    select: { id: true, title: true },
+  });
+  if (!target) {
+    throw new AppError(404, "NOT_FOUND", "Movie not found");
+  }
+
+  const graph = await loadPrerequisiteGraph();
+  const orderedIds = buildRewatchOrder(targetId, graph);
+
+  const movies =
+    orderedIds.length === 0
+      ? []
+      : await prisma.movie.findMany({
+          where: { id: { in: orderedIds } },
+          select: { id: true, title: true, runtime: true, watched: true },
+        });
+  const movieById = new Map(movies.map((movie) => [movie.id, movie]));
+
+  // keep the order that the algorithm produced
+  const order: RewatchItem[] = orderedIds.flatMap((id) => {
+    const movie = movieById.get(id);
+    return movie ? [movie] : [];
+  });
+
+  const watchedCount = order.filter((movie) => movie.watched).length;
+  const remainingMinutes = order
+    .filter((movie) => !movie.watched)
+    .reduce((sum, movie) => sum + movie.runtime, 0);
+
+  return {
+    target: { id: target.id, title: target.title },
+    order,
+    totalCount: order.length,
+    watchedCount,
+    remainingMinutes,
+  };
 };

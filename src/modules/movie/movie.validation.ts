@@ -1,17 +1,18 @@
 import { AppError } from "../../errors/AppError";
 import { CreateMovieInput } from "./movie.interface";
+import {
+  isPlainObject,
+  validateId,
+  validationError,
+} from "../../lib/validators";
+
+export { validateId };
 
 const MIN_RELEASE_YEAR = 1900;
 const MAX_RELEASE_YEAR = 2100;
 const MIN_RUNTIME = 1;
 const MAX_RUNTIME = 300;
 const MAX_TITLE_LENGTH = 200;
-
-const validationError = (message: string) =>
-  new AppError(400, "VALIDATION_ERROR", message);
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const parseTitle = (value: unknown): string => {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -129,14 +130,6 @@ export const validateCreateMovies = (body: unknown): CreateMovieInput[] => {
     titles.add(movie.title);
   }
   return movies;
-};
-
-export const validateId = (raw: unknown): number => {
-  const id = typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : NaN;
-  if (!Number.isSafeInteger(id) || id < 1) {
-    throw validationError("id must be a positive integer");
-  }
-  return id;
 };
 
 import { UpdateMovieInput } from "./movie.interface"; // add to the existing import

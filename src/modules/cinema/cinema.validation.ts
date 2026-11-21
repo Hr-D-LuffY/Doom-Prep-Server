@@ -7,6 +7,8 @@ const MIN_BUNDLE_TYPES = 1;
 const MAX_BUNDLE_TYPES = 10;
 const MIN_BUNDLE_SIZE = 1;
 const MAX_BUNDLE_SIZE = 500;
+const MIN_GROUP_SIZE = 1;
+const MAX_GROUP_SIZE = 10000;
 
 const parseName = (value: unknown): string => {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -92,4 +94,17 @@ export const validateCreateCinemas = (body: unknown): CreateCinemaInput[] => {
     names.add(cinema.name);
   }
   return cinemas;
+};
+
+export const validateGroupSize = (raw: unknown): number => {
+  if (typeof raw !== "string" || !/^\d+$/.test(raw)) {
+    throw validationError("groupSize is required and must be a whole number");
+  }
+  const groupSize = Number(raw);
+  if (groupSize < MIN_GROUP_SIZE || groupSize > MAX_GROUP_SIZE) {
+    throw validationError(
+      `groupSize must be between ${MIN_GROUP_SIZE} and ${MAX_GROUP_SIZE}`,
+    );
+  }
+  return groupSize;
 };

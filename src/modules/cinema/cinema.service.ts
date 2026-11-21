@@ -1,6 +1,11 @@
 import { AppError } from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
-import type { CinemaResponse, CreateCinemaInput } from "./cinema.interface";
+import { calculateBooking } from "./bookingQuote";
+import type {
+  BookingResponse,
+  CinemaResponse,
+  CreateCinemaInput,
+} from "./cinema.interface"; // merge with existing import
 
 const toCinemaResponse = (cinema: {
   id: number;
@@ -78,4 +83,29 @@ export const deleteCinema = async (id: number): Promise<void> => {
     throw new AppError(404, "NOT_FOUND", "Cinema not found");
   }
   await prisma.cinema.delete({ where: { id } });
+};
+
+export const getBookingQuote = async (
+  cinemaId: number,
+  groupSize: number,
+): Promise<BookingResponse> => {
+  const cinema = await prisma.cinema.findUnique({
+    where: { id: cinemaId },
+    select: { bundleSizes: true },
+  });
+  if (!cinema) {
+    throw new AppError(404, "NOT_FOUND", "Cinema not found");
+  }
+
+  const breakdown = calculateBooking(cinema.bundleSizes, groupSize);
+  if (!breakdown) {
+    return { possible: false, groupSize };
+  }
+
+  return {
+    possible: true,
+    groupSize,
+    totalBundles: breakdown.reduce((sum, item) => sum + item.count, 0),
+    breakdown,
+  };
 };

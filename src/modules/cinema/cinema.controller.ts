@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { validateId } from "../../lib/validators";
 import * as cinemaService from "./cinema.service";
-import { validateCreateCinemas } from "./cinema.validation";
+import { validateCreateCinemas, validateGroupSize } from "./cinema.validation";
 
 export const createCinema = async (req: Request, res: Response) => {
   const isBatch = Array.isArray(req.body);
@@ -23,4 +23,11 @@ export const deleteCinema = async (req: Request, res: Response) => {
   const id = validateId(req.params.id);
   await cinemaService.deleteCinema(id);
   res.status(200).json({ message: "Cinema deleted successfully", id });
+};
+
+export const getBookingQuote = async (req: Request, res: Response) => {
+  const cinemaId = validateId(req.params.id);
+  const groupSize = validateGroupSize(req.query.groupSize);
+  const quote = await cinemaService.getBookingQuote(cinemaId, groupSize);
+  res.json(quote);
 };
